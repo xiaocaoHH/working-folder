@@ -20,8 +20,9 @@ from sklearn import metrics
 from sklearn.model_selection import train_test_split
 from sklearn import decomposition
 
-from tools import parameter_tuning
-from tools import stats_lib
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score
 
 # encode category variables to numeric variables.
 def run_encode(df, target):    
@@ -101,17 +102,10 @@ def preprocessing(df, branch):
     #  If drop is used, too few rows are left. So, I use imputation.)
     for col in df:
         if is_numeric_dtype(df[col]):
-            #df[col].fillna(df[col].mean(), inplace=True )
-            if branch==0:
-                df[col] = df.groupby('y', sort=False)[col].apply(lambda x: x.fillna(x.mean()))
-            else:
-                df[col].fillna(df[col].mean(), inplace=True )
+            df[col].fillna(df[col].mean(), inplace=True )
         else:
-            #df[col].fillna(df[col].mode()[0], inplace=True )
-            if branch==0:
-                df[col] = df.groupby('y', sort=False)[col].apply(lambda x: x.fillna(x.mode().iloc[0]))
-            else:
-                df[col].fillna(df[col].mode()[0], inplace=True )
+            df[col].fillna(df[col].mode()[0], inplace=True )    
+
 
     # remove duplicate (no duplicate row found)
     # duplicate_df = df[df.duplicated()]
@@ -119,15 +113,14 @@ def preprocessing(df, branch):
 
     # remove outlier for training data
     if branch==0:
-        df = stats_lib.remove_outliers(df)
-        #Q1 = df.quantile(0.05)
-        #Q3 = df.quantile(0.95)
-        #IQR = Q3 - Q1
+        
+        Q1 = df.quantile(0.05)
+        Q3 = df.quantile(0.95)
+        IQR = Q3 - Q1
         #print(IQR)
-        #df = df[~((df<(Q1-1.5*IQR))|(df>(Q3+1.5*IQR))).any(axis=1)]
+        df = df[~((df<(Q1-1.5*IQR))|(df>(Q3+1.5*IQR))).any(axis=1)]
         #print(df.shape)
         
-        stats_lib.show_correlation(df)
         # find relation between the variables
         #plt.figure()
         #c=df.corr()
@@ -139,167 +132,148 @@ def preprocessing(df, branch):
     #print(df.shape)
 
     return df
-  
+
+def evaluate(model, x_test, y_test):
+    
+    # evaluate
+    p_pred = model.predict_proba(x_test)[::,1]
+    y_pred = model.predict(x_test)
+    
+    score = model.score(x_test, y_test)    
+    print("Score: " + str(score))
+    
+    conf_m = confusion_matrix(y_test, y_pred)
+    print("Confusion matrix:")
+    print(conf_m)
+    
+    print("Classification_report:")
+    print(classification_report(y_test, y_pred))
+
+    #calculate AUC of model
+    auc = metrics.roc_auc_score(y_test, p_pred)
+    print("AUC: " + str(auc))
+    
 def get_model_lr():
-    model_lr = LogisticRegression()
+    model_lr = LogisticRegression(penalty='elasticnet', dual=False, tol=0.0001, C=10.0, fit_intercept=True, intercept_scaling=1, 
+            class_weight=None, random_state=None, solver='saga', max_iter=500, multi_class='auto', 
+            verbose=0, warm_start=False, n_jobs=None, l1_ratio=0.5)
     return model_lr
         
-def run_logistic_regression(x_train,x_test,y_train,y_test,fstr):
+def run_logistic_regression(x_train,x_test,y_train,y_test):
     
     # fit
     model_lr = get_model_lr()
-    exec("model_lr.__init__(" + fstr + ")")
-    print(model_lr)
     model_lr.fit(x_train,y_train)
 
     # evaluate
-    p_pred = model_lr.predict_proba(x_test)[::,1]
-    y_pred = model_lr.predict(x_test)
-    stats_lib.validate_model(y_test, y_pred, p_pred)
+    evaluate(model_lr, x_test, y_test)
     return model_lr
     
 
 def get_model_rf():
-    model_rf = RandomForestClassifier()
+    model_rf = RandomForestClassifier(n_estimators=500, criterion='gini', max_depth=None, min_samples_split=2, 
+                                   min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features='auto', max_leaf_nodes=None, 
+                                   min_impurity_decrease=0.0, min_impurity_split=None, bootstrap=True, oob_score=False, 
+                                   n_jobs=None, random_state=None, verbose=0, warm_start=False, class_weight=None, 
+                                   ccp_alpha=0.0, max_samples=None)
     return model_rf
-
-def run_random_forest(x_train,x_test,y_train,y_test, fstr):
+def run_random_forest(x_train,x_test,y_train,y_test):
     
     # fit
     # help(RandomForestClassifier)
     model_rf = get_model_rf()
-    exec("model_rf.__init__(" + fstr + ")")
-    print(model_rf)
     model_rf.fit(x_train,y_train)
 
     # evaluate
-    p_pred = model_rf.predict_proba(x_test)[::,1]
-    y_pred = model_rf.predict(x_test)
-    stats_lib.validate_model(y_test, y_pred, p_pred)    
+    evaluate(model_rf, x_test, y_test)    
     return model_rf
+    
+def reduce_dimension(x):
+    pca = decomposition.PCA(n_components=50)
+    pca.fit(x)
+    # print(sum(pca.explained_variance_ratio_))
+    x_reduced = pca.transform(x)
+    return x_reduced
 
 def save_file(x, file):
     np.savetxt(file, x, fmt='%f')
         
-def train_Logistic_Regression(x, y, x_test_future,column_names):
-    # sampling
-    x, y = stats_lib.sample_unbalanced_data(x, y)
+def cross_validation(model, X_train, y_train):
+    pipeline = make_pipeline(StandardScaler(), model)
+    scores = cross_val_score(pipeline, X=X_train, y=y_train, cv=10, n_jobs=1) 
+    print('Cross Validation accuracy scores: %s' % scores)
+    print('Cross Validation accuracy: %.3f +/- %.3f' % (np.mean(scores),np.std(scores)))
+    
+def run_cross_validation(x, y, model):    
+    cross_validation(model, x, y)
 
-    # normalize data
-    x = stats_lib.normalize_data(x)
-    x_test_future = stats_lib.normalize_data(x_test_future)
 
+def train_Logistic_Regression(x, y, x_test_future):
     # dimension reduction through PCA
-    x_reduced = stats_lib.reduce_dimension(x)
-    x_test_future_reduced = stats_lib.reduce_dimension(x_test_future)
+    x_reduced = reduce_dimension(x)
+    x_test_future_reduced = reduce_dimension(x_test_future)
+    
+    # cross validation
+    # print("------------Cross validation results for Logistic Regression---------------")
+    # model_lr = get_model_lr()
+    # run_cross_validation(x_reduced, y, model_lr)
 
     #split the dataset into training (70%) and validating (30%) sets
     x_train,x_test,y_train,y_test = train_test_split(x_reduced,y,test_size=0.3,random_state=0)
 
-    # choose the best model
-    stats_lib.choose_best_model(x_train, x_test, y_train, y_test)
-
-    # tune hyper parameters
-    model = get_model_lr()
-    para_grid = {
-        'C':[0.1,1,10]
-    }
-    stats_lib.hyper_parameters_turning(x_reduced, y, model, para_grid)
-
-    # tune hyper parameters
-    # model_lr = get_model_lr()
-    # paras_list = """penalty:'elasticnet', C:1.0:10.0:1.0, solver:'saga', l1_ratio:0.1:0.5:0.1"""        
-    
-    # fstr, score, results = tuning.tune_hyper_parameters(model_lr, paras_list, x_reduced, y)
-    # print('----------------- tuning results of LG---------------')
-    # print(fstr)
-    # print(score)
-    # print(results)
-
-    fstr = fstr + "," + "max_iter=2000"
-
     # train using logistic regression
     print('------------Logistic regression---------')
-    model_lr = run_logistic_regression(x_train,x_test,y_train,y_test, fstr)
-
+    model_lr = run_logistic_regression(x_train,x_test,y_train,y_test)
     # predict and save
     file = 'logistic_regression_results.csv'
     x = model_lr.predict_proba(x_test_future_reduced)[::,1]
     save_file(x, file)
 
-def train_Random_Forest(x, y, x_test_future,column_names):
-    # sampling
-    x, y = stats_lib.sample_unbalanced_data(x, y)
-
-    # normalize data
-    x = stats_lib.normalize_data(x)
-    x_test_future = stats_lib.normalize_data(x_test_future)
+def train_Random_Forest(x, y, x_test_future):
+    # cross validation
+    # print("------------Cross validation results for random forest---------------")
+    # model_rf = get_model_rf()
+    # run_cross_validation(x, y, model_rf)
 
     #split the dataset into training (70%) and validating (30%) sets
     x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.3,random_state=0)
 
-    # choose the best model
-    stats_lib.choose_best_model(x_train, x_test, y_train, y_test)
-
-    # tune hyper parameters
-    model = get_model_rf()
-    para_grid = {
-        'n_estimators':[10,50,100]
-    }
-    stats_lib.hyper_parameters_turning(x, y, model, para_grid)
-
-
-    # tune hyper parameters
-    # model_rf = get_model_rf()
-    # paras_list = """n_estimators:100:500:100"""        
-    
-    # fstr, score, results = parameter_tuning.tune_hyper_parameters(model_rf, paras_list, x, y)
-    # print('----------------- tuning results of RF---------------')
-    # print(fstr)
-    # print(score)
-    # print(results)
-
-    fstr = "n_estimators=100"
-
     # train using random forest
     print('------------Random Forest---------------')
-    model_rf = run_random_forest(x_train,x_test,y_train,y_test, fstr)
-
+    model_rf = run_random_forest(x_train,x_test,y_train,y_test)
     # predict and save
     file = 'random_forest_results.csv'
     x = model_rf.predict_proba(x_test_future)[::,1]
     save_file(x, file)
+    
+# configure to show all information
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+np.set_printoptions(threshold=np.inf)
 
-def main():   
-    # configure to show all information
-    pd.set_option('display.max_rows', None)
-    pd.set_option('display.max_columns', None)
-    np.set_printoptions(threshold=np.inf)
+# close warning
+warnings.simplefilter('ignore')
 
-    # close warning
-    warnings.simplefilter('ignore')
+# read training data
+# (40000, 101)
+df_train = pd.read_csv('exercise_40_train.csv')
+# (10000, 101)
+df_test = pd.read_csv('exercise_40_test.csv')
 
-    # read training data
-    # (40000, 101)
-    df_train = pd.read_csv('exercise_40_train.csv')
-    # (10000, 101)
-    df_test = pd.read_csv('exercise_40_test.csv')
+# preprocessing on both train data and test data
+df_train = preprocessing(df_train, 0)
+df_test = preprocessing(df_test, 1)
 
-    # preprocessing on both train data and test data
-    df_train = preprocessing(df_train, 0)
-    df_test = preprocessing(df_test, 1)
+# convert pandas to numpy
+df_train = df_train.to_numpy()
+x = df_train[:,1:]
+y = df_train[:,0]
+x_test_future = df_test.to_numpy()
 
-    # convert pandas to numpy
-    df_train = df_train.to_numpy()
-    x = df_train[:,1:]
-    y = df_train[:,0]
-    x_test_future = df_test.to_numpy()
+# Train
+train_Logistic_Regression(x, y, x_test_future)
+train_Random_Forest(x, y, x_test_future)
 
-    # Train
-    train_Logistic_Regression(x, y, x_test_future, df_test.columns)
-    train_Random_Forest(x, y, x_test_future,df_test.columns)
 
-if __name__ == '__main__':
-    main()
 
 
