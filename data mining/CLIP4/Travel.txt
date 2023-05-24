@@ -1,0 +1,12 @@
+Travel Agency Data
+Type of Call, Lang Fluency, Ticket Type,Age, Decision
+S,S,S,S,S
+Local,Fluent,Long,Very young,Buy
+Local,Fluent,Local,Old,Buy
+Local,Fluent,Short,Middle,Buy
+Long,Not fluent,Short,Very old,Buy
+Intern,Accent,Long,Very old,Buy
+Local,Not fluent,Short,Very young,Not buy
+Local,Not fluent,Long,Middle,Not buy
+Intern,Fluent,Short,Middle,Not buy
+Intern,Foreign,Long,Young,Not buy

@@ -1,0 +1,37 @@
+class Solution:
+    def findComplement(self, num: int) -> int:
+        # Convert num to binary string
+        binary = bin(num)[2:]
+
+        # Flip all bits in the binary string
+        flipped_binary = ''.join(['0' if bit == '1' else '1' for bit in binary])
+
+        # Convert the flipped binary string back to an integer
+        if flipped_binary:
+            return int(flipped_binary, 2)
+        else:
+            return 1
+
+# class Solution:
+#     def findComplement(self, num: int) -> int:
+
+#         left = num // 2
+#         sz = num.bit_length()
+
+#         for n in range(num, -1, -1):
+#             if n&num == 0 and n|num == pow(2,sz) -1:
+#                 return n
+
+
+# class Solution:
+#     def findComplement(self, num: int) -> int:
+        
+#         bits_length = num.bit_length()
+
+        # if num == 5
+        # left = num >> 1
+        # print(left)  2
+        # right = num << 1
+        # print(right)  10 
+        
+#         return num^( 2**bits_length - 1 )

@@ -1,0 +1,90 @@
+class Solution:
+    def totalHammingDistance(self, nums: List[int]) -> int:
+        ans = 0
+        for i in range(32):
+            zero = one = 0
+            mask = 1 << i
+            for num in nums:
+                if mask & num: one += 1
+                else: zero += 1    
+            ans += one * zero        
+        return ans 
+
+# class Solution:
+#     def totalHammingDistance(self, nums: List[int]) -> int:
+
+#         sz = len(nums)
+#         self.dic = dict()
+
+#         d = 0
+#         for i in range(sz):
+#             for j in range(i+1,sz):
+#                 d += self.getDistance(nums[i], nums[j])
+
+#         return d
+
+#     def getDistance(self, d1, d2):
+#         d_and = d1&d2
+#         d_or = d1|d2
+
+#         n1 = d_and.bit_length()
+#         n2 = d_or.bit_length()
+#         s1 = bin(d_and)[2:]
+#         s2 = bin(d_or)[2:]
+
+#         d = 0
+#         for i in range(n1):
+#             if s1[i]=='0':
+#                 d += 1
+#         d += abs(n1-n2)
+
+#         for i in range(n2):
+#             if s2[i]=='0':
+#                 d -= 1
+
+#         return d
+
+
+        # if d1 not in self.dic.keys():
+        #     n1 = d1.bit_length()
+        #     s1 = bin(d1)[2:]
+        #     self.dic[d1] = list([n1, s1])
+
+        # else:
+        #     n1 = self.dic[d1][0]
+        #     s1 = self.dic[d1][1]
+
+        # if d2 not in self.dic.keys():
+        #     n2 = d2.bit_length()
+        #     s2 = bin(d2)[2:]
+        #     self.dic[d2] = list([n2, s2])
+
+        # else:
+        #     n2 = self.dic[d2][0]
+        #     s2 = self.dic[d2][1]
+
+        # nmax = max(n1,n2)
+        # nmin = min(n1,n2)
+        
+        # if n1<n2:
+        #     temp = s1
+        #     s1 = s2
+        #     s2 = temp
+
+        # d = 0
+        # ctr = nmin
+        # cc = 0
+        # for index in range(nmax-1, -1, -1):
+        #     cc += 1
+        #     if cc <= ctr:
+        #         digit1 = s1[nmax - cc] 
+        #         digit2 = s2[nmin - cc]
+        #         if digit1==digit2:
+        #             pass
+        #         else:
+        #             d +=1
+        #     else:
+        #         if s1[index]=='1':
+        #             d += 1
+
+        # return d
