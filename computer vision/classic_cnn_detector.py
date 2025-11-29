@@ -2,7 +2,7 @@
 Classic CNN-based object detector on Pascal VOC 2007 (person, car, dog).
 
 Model:
-  - VGG-like CNN backbone (Conv + MaxPool blocks)
+  - CNN backbone (Conv + MaxPool blocks)
   - Flatten + Dense to predict a fixed number of boxes per image
 
 Each box slot predicts:
@@ -10,11 +10,6 @@ Each box slot predicts:
   objectness (0/1),
   class scores for (person, car, dog)
 
-Requirements:
-  pip install tensorflow tensorflow-datasets matplotlib
-
-Run:
-  python classic_cnn_detector.py
 """
 
 import math
@@ -169,7 +164,7 @@ def build_dataset(split, batch_size, shuffle=True):
     if shuffle:
         ds = ds.shuffle(1000)
     #ds = ds.take(100).batch(batch_size).prefetch(tf.data.AUTOTUNE)
-    ds = ds.take(1000).batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    ds = ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
     return ds
 
 
@@ -187,28 +182,23 @@ def build_cnn_detector():
     inputs = tf.keras.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
 
     x = inputs
-    # Block 1: 224 -> 112
-    x = tf.keras.layers.Conv2D(64, 3, padding="same", activation="relu")(x)
+    # Block 1:
     x = tf.keras.layers.Conv2D(64, 3, padding="same", activation="relu")(x)
     x = tf.keras.layers.MaxPool2D(pool_size=2, strides=2)(x)
 
-    # Block 2: 112 -> 56
-    x = tf.keras.layers.Conv2D(128, 3, padding="same", activation="relu")(x)
+    # Block 2:
     x = tf.keras.layers.Conv2D(128, 3, padding="same", activation="relu")(x)
     x = tf.keras.layers.MaxPool2D(pool_size=2, strides=2)(x)
 
-    # Block 3: 56 -> 28
-    x = tf.keras.layers.Conv2D(256, 3, padding="same", activation="relu")(x)
+    # Block 3:
     x = tf.keras.layers.Conv2D(256, 3, padding="same", activation="relu")(x)
     x = tf.keras.layers.MaxPool2D(pool_size=2, strides=2)(x)
 
-    # Block 4: 28 -> 14
-    x = tf.keras.layers.Conv2D(512, 3, padding="same", activation="relu")(x)
+    # Block 4:
     x = tf.keras.layers.Conv2D(512, 3, padding="same", activation="relu")(x)
     x = tf.keras.layers.MaxPool2D(pool_size=2, strides=2)(x)
 
-    # Block 5: 14 -> 7
-    x = tf.keras.layers.Conv2D(512, 3, padding="same", activation="relu")(x)
+    # Block 5: 
     x = tf.keras.layers.Conv2D(512, 3, padding="same", activation="relu")(x)
     x = tf.keras.layers.MaxPool2D(pool_size=2, strides=2)(x)
 
